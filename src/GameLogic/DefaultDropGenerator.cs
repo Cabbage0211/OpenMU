@@ -179,20 +179,31 @@ public class DefaultDropGenerator : IDropGenerator
     /// <returns>A random excellent item.</returns>
     protected Item? GenerateRandomExcellentItem(int monsterLevel = 0, ICollection<ItemDefinition>? possibleItems = null)
     {
-        if (monsterLevel < this._excellentItemDropLevelDelta && possibleItems is null)
+        // 1. 定义原始的最大差值
+        int maxDelta = this._excellentItemDropLevelDelta;
+
+        // 2. 产生一个 0 到 maxDelta 之间的随机差值
+        // 注意：Rand(0, maxDelta + 1) 确保能取到 maxDelta 本身
+        int dynamicDelta = MyRandom.Next(0, maxDelta + 1);
+
+        // 3. 使用随机出来的 dynamicDelta 进行门槛判定
+        if (monsterLevel < dynamicDelta && possibleItems is null)
         {
             return null;
         }
 
-        var possible = possibleItems ?? this.GetPossibleList(monsterLevel - this._excellentItemDropLevelDelta);
+        // 4. 获取候选池时，也使用这个随机差值
+        // 差值越小，获取到的物品等级越高
+        var possible = possibleItems ?? this.GetPossibleList(monsterLevel - dynamicDelta);
+
         var item = this.GenerateRandomItem(possible);
         if (item is null)
         {
             return null;
         }
 
-        item.HasSkill = item.CanHaveSkill(); // every excellent item got skill
-
+        // 后续逻辑保持不变...
+        item.HasSkill = item.CanHaveSkill();
         this.AddRandomExcOptions(item);
         item.Durability = item.GetMaximumDurabilityOfOnePiece();
         return item;

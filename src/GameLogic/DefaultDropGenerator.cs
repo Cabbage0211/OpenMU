@@ -24,6 +24,9 @@ public class DefaultDropGenerator : IDropGenerator
     private const byte MinItemOptionLevelDrop = 1;
     private const byte MaxItemOptionLevelDrop = 4;
 
+    // 建议在类成员变量中定义一次随机数生成器
+    private static readonly System.Random _dropRandom = new System.Random();
+
     /// <summary>
     /// A re-usable list of drop item groups.
     /// </summary>
@@ -179,22 +182,24 @@ public class DefaultDropGenerator : IDropGenerator
     /// <returns>A random excellent item.</returns>
     protected Item? GenerateRandomExcellentItem(int monsterLevel = 0, ICollection<ItemDefinition>? possibleItems = null)
     {
-        // 1. 定义原始的最大差值
+        // 1. 获取最大差值
         int maxDelta = this._excellentItemDropLevelDelta;
 
-        // 2. 产生一个 0 到 maxDelta 之间的随机差值
-        // 注意：Rand(0, maxDelta + 1) 确保能取到 maxDelta 本身
-        int dynamicDelta = MyRandom.Next(0, maxDelta + 1);
+        // 2. 使用 C# 自带的 Next 方法产生随机差值
+        // _dropRandom.Next(min, max) 返回： min <= 结果 < max
+        // 所以为了包含 maxDelta，需要加 1
+        int dynamicDelta = (maxDelta > 0) ? _dropRandom.Next(0, maxDelta + 1) : 0;
 
-        // 3. 使用随机出来的 dynamicDelta 进行门槛判定
+        // 3. 门槛判定：使用本次随机生成的差值
         if (monsterLevel < dynamicDelta && possibleItems is null)
         {
             return null;
         }
 
-        // 4. 获取候选池时，也使用这个随机差值
-        // 差值越小，获取到的物品等级越高
-        var possible = possibleItems ?? this.GetPossibleList(monsterLevel - dynamicDelta);
+        // 4. 计算候选池等级：monsterLevel 减去本次随机差值
+        // 使用 Math.Max 确保等级不会减成负数导致出错
+        int targetLevel = Math.Max(0, monsterLevel - dynamicDelta);
+        var possible = possibleItems ?? this.GetPossibleList(targetLevel);
 
         var item = this.GenerateRandomItem(possible);
         if (item is null)
@@ -202,10 +207,11 @@ public class DefaultDropGenerator : IDropGenerator
             return null;
         }
 
-        // 后续逻辑保持不变...
+        // 后续卓越属性处理保持不变...
         item.HasSkill = item.CanHaveSkill();
         this.AddRandomExcOptions(item);
         item.Durability = item.GetMaximumDurabilityOfOnePiece();
+
         return item;
     }
 
